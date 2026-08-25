@@ -1,117 +1,137 @@
-import numpy as np
+import tensorflow as tf
 import matplotlib.pyplot as plt
 
 
-# AND Gate Dataset
-X = np.array([
-    [0, 0],
-    [0, 1],
-    [1, 0],
-    [1, 1]
+# Load MNIST dataset
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+
+
+# Normalize pixel values
+x_train = x_train / 255.0
+x_test = x_test / 255.0
+
+
+# Add channel dimension
+x_train = x_train.reshape(-1, 28, 28, 1)
+x_test = x_test.reshape(-1, 28, 28, 1)
+
+
+# Create CNN model
+model = tf.keras.Sequential([
+    
+    # Convolution Layer
+    tf.keras.layers.Conv2D(
+        32,
+        (3, 3),
+        activation="relu",
+        input_shape=(28, 28, 1)
+    ),
+
+    # Pooling Layer
+    tf.keras.layers.MaxPooling2D((2, 2)),
+
+    # Second Convolution Layer
+    tf.keras.layers.Conv2D(
+        64,
+        (3, 3),
+        activation="relu"
+    ),
+
+    # Pooling Layer
+    tf.keras.layers.MaxPooling2D((2, 2)),
+
+    # Flatten
+    tf.keras.layers.Flatten(),
+
+    # Fully Connected Layer
+    tf.keras.layers.Dense(
+        128,
+        activation="relu"
+    ),
+
+    # Output Layer
+    tf.keras.layers.Dense(
+        10,
+        activation="softmax"
+    )
 ])
 
-y = np.array([0, 0, 0, 1])
+
+# Display model structure
+model.summary()
 
 
-# Initialize weights and bias
-weights = np.zeros(2)
-bias = 0
-
-learning_rate = 0.1
-epochs = 10
-
-
-# Step Activation Function
-def activation(z):
-    if z >= 0:
-        return 1
-    else:
-        return 0
+# Compile model
+model.compile(
+    optimizer="adam",
+    loss="sparse_categorical_crossentropy",
+    metrics=["accuracy"]
+)
 
 
-# Train the Perceptron
-for epoch in range(epochs):
-
-    for i in range(len(X)):
-
-        # Calculate weighted sum
-        z = np.dot(X[i], weights) + bias
-
-        # Predict output
-        prediction = activation(z)
-
-        # Calculate error
-        error = y[i] - prediction
-
-        # Update weights
-        weights = weights + learning_rate * error * X[i]
-
-        # Update bias
-        bias = bias + learning_rate * error
+# Train CNN
+history = model.fit(
+    x_train,
+    y_train,
+    epochs=5,
+    validation_split=0.1
+)
 
 
-# Display trained parameters
-print("Final Weights:", weights)
-print("Final Bias:", bias)
+# Evaluate model
+test_loss, test_accuracy = model.evaluate(
+    x_test,
+    y_test,
+    verbose=0
+)
+
+print("\nTest Accuracy:", test_accuracy)
 
 
-# Test the Perceptron
-print("\nPredictions:")
+# Make predictions
+predictions = model.predict(x_test)
 
-for i in range(len(X)):
 
-    z = np.dot(X[i], weights) + bias
+# Display sample predictions
+plt.figure(figsize=(10, 5))
 
-    prediction = activation(z)
+for i in range(10):
 
-    print(
-        "Input:", X[i],
-        "Actual:", y[i],
-        "Predicted:", prediction
+    plt.subplot(2, 5, i + 1)
+
+    plt.imshow(
+        x_test[i].reshape(28, 28),
+        cmap="gray"
     )
 
+    predicted_class = predictions[i].argmax()
 
-# Plot the data points
+    plt.title(
+        f"Actual: {y_test[i]}\nPredicted: {predicted_class}"
+    )
+
+    plt.axis("off")
+
+plt.tight_layout()
+plt.show()
+
+
+# Plot training accuracy
 plt.figure(figsize=(7, 5))
 
-for i in range(len(X)):
+plt.plot(
+    history.history["accuracy"],
+    label="Training Accuracy"
+)
 
-    if y[i] == 0:
-        plt.scatter(
-            X[i][0],
-            X[i][1],
-            marker="o",
-            s=100,
-            label="Class 0" if i == 0 else ""
-        )
-    else:
-        plt.scatter(
-            X[i][0],
-            X[i][1],
-            marker="x",
-            s=100,
-            label="Class 1"
-        )
+plt.plot(
+    history.history["val_accuracy"],
+    label="Validation Accuracy"
+)
 
-
-# Plot Decision Boundary
-x_values = np.linspace(-0.2, 1.2, 100)
-
-if weights[1] != 0:
-
-    y_values = -(weights[0] * x_values + bias) / weights[1]
-
-    plt.plot(
-        x_values,
-        y_values,
-        label="Decision Boundary"
-    )
-
-
-# Graph labels
-plt.xlabel("X1")
-plt.ylabel("X2")
-plt.title("Simple Perceptron - AND Gate")
+plt.xlabel("Epoch")
+plt.ylabel("Accuracy")
+plt.title("CNN Training and Validation Accuracy")
 
 plt.legend()
 plt.grid(True)
